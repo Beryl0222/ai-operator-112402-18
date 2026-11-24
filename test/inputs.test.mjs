@@ -1,17 +1,29 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
+import { mdctWindow, voiceBlock } from '../inputs/mdct-assets.mjs';
 
-const d = JSON.parse(readFileSync(new URL('../inputs/session.json', import.meta.url), 'utf8'));
-
-test("上支和门支的输入输出维数", () => {
-  assert.ok(d.groups.every(g=>[g.up,g.gate,g.upErr,g.gateErr].every(a=>a.length===g.coords.length) && g.up.every(row=>row.length===d.inputs[0].x.length)));
-});
-
-test("修订有实际逻辑通道搬迁", () => {
-  assert.ok(d.contractVersions[0].map.light[1]!==d.contractVersions[1].map.light[1]);
-});
-
-test("过宽的读屏误差与错裁切的投影均可表达", () => {
-  assert.ok(d.groups[0].upErr[1]>d.profiles.reader.tolerance.tone && d.events[2][1]!==d.events[1][1]);
+const data=JSON.parse(readFileSync(new URL('../inputs/mdct-assets.json',import.meta.url),'utf8'));
+test('录音页与设备窗表的格式与关联', () => {
+  assert.equal(data.M/data.m,8);
+  assert.equal(mdctWindow('start').length,data.M*2);
+  assert.equal(mdctWindow('short').length,data.m*2);
+  const w = mdctWindow('long');
+  assert.ok(Math.abs(w[7]**2+w[data.M+7]**2-1)<1e-12);
+  assert.equal(voiceBlock(4,1).length,data.m*2);
+  assert.ok(data.mulLimit < data.M*data.M);
+  assert.ok(data.cutLimit<data.frames/(data.m*2));
+  assert.equal(mdctWindow("stop")[data.M],mdctWindow("start")[data.M-1]);
+  const coverage = new Float64Array(7168);
+  for(const [kind,loc] of data.knots) {
+    if(kind==='short-group') {
+      const w=mdctWindow('short');
+      for(let k=0;k<data.M/data.m;k++)
+        for(let i=0;i<w.length;i++) coverage[loc+(data.M-data.m)/2+k*data.m+i]+=w[i]**2;
+    } else {
+      const w=mdctWindow(kind);
+      for(let i=0;i<w.length;i++) coverage[loc+i]+=w[i]**2;
+    }
+  }
+  assert.ok(coverage.slice(1024,6144).every(v=>Math.abs(1-v)<1e-12));
 });

@@ -1,9 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
+import * as input from './inputs/mdct-assets.mjs';
 
-const input = new URL('./inputs/session.json', import.meta.url);
-const session = JSON.parse(await readFile(input, 'utf8'));
-const fields = Object.entries(session).map(([field, value]) => ({
-  field,
-  entries: Array.isArray(value) ? value.length : null,
-}));
-console.log(JSON.stringify({ fields }, null, 2));
+const source=JSON.parse(readFileSync(new URL('./inputs/mdct-assets.json',import.meta.url),'utf8'));
+console.log(JSON.stringify({名称:'录音页与设备窗表',首项:source['frames'],字段:Object.keys(source),取数函数:Object.keys(input)},null,2));
